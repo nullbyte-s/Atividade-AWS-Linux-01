@@ -2,22 +2,24 @@
 
 As seguintes instruções foram passadas como atividade prática no contexto da AWS e do Linux:
 
-### Requisitos AWS:
-    • Gerar uma chave pública para acesso ao ambiente;
-    • Criar 1 instância EC2 com o sistema operacional Amazon Linux 2 (Família t3.small, 16 GB SSD);
-    • Gerar 1 elastic IP e anexar à instância EC2;
-    • Liberar as portas de comunicação para acesso público: (22/TCP, 111/TCP e UDP, 2049/TCP/UDP, 80/TCP, 443/TCP).
+    𝐑𝐞𝐪𝐮𝐢𝐬𝐢𝐭𝐨𝐬 𝐀𝐖𝐒:
 
-### Requisitos no linux:
-    • Configurar o NFS entregue;
-    • Criar um diretório dentro do filesystem do NFS com seu nome;
-    • Subir um apache no servidor - o apache deve estar online e rodando;
-    • Criar um script que valide se o serviço esta online e envie o resultado da validação para o seu diretorio no nfs;
-    • O script deve conter - Data HORA + nome do serviço + Status + mensagem personalizada de ONLINE ou offline;
-    • O script deve gerar 2 arquivos de saida: 1 para o serviço online e 1 para o serviço OFFLINE;
-    • Preparar a execução automatizada do script a cada 5 minutos.
-    • Fazer o versionamento da atividade;
-    • Fazer a documentação explicando o processo de instalação do Linux.
+        • Gerar uma chave pública para acesso ao ambiente;
+        • Criar 1 instância EC2 com o sistema operacional Amazon Linux 2 (Família t3.small, 16 GB SSD);
+        • Gerar 1 elastic IP e anexar à instância EC2;
+        • Liberar as portas de comunicação para acesso público: (22/TCP, 111/TCP e UDP, 2049/TCP/UDP, 80/TCP, 443/TCP).
+
+    𝐑𝐞𝐪𝐮𝐢𝐬𝐢𝐭𝐨𝐬 𝐧𝐨 𝐋𝐢𝐧𝐮𝐱:
+
+        • Configurar o NFS entregue;
+        • Criar um diretório dentro do filesystem do NFS com seu nome;
+        • Subir um apache no servidor - o apache deve estar online e rodando;
+        • Criar um script que valide se o serviço esta online e envie o resultado da validação para o seu diretorio no nfs;
+        • O script deve conter - Data HORA + nome do serviço + Status + mensagem personalizada de ONLINE ou offline;
+        • O script deve gerar 2 arquivos de saida: 1 para o serviço online e 1 para o serviço OFFLINE;
+        • Preparar a execução automatizada do script a cada 5 minutos.
+        • Fazer o versionamento da atividade;
+        • Fazer a documentação explicando o processo de instalação do Linux.
 
 Nesse sentido, o presente documento atenderá a essas demandas, ao descrever todos os passos necessários para a configuração de um ambiente Linux na AWS, utilizando uma instância EC2 com Amazon Linux 2. As etapas incluem a criação de uma VPC, configuração de NFS, instalação do Apache, criação de um script de monitoramento e automatização de tarefas. Foram utilizados nomes de exemplos, para facilitar a compreensão da associação entre os recursos.
 
@@ -182,7 +184,7 @@ Adicionar a seguinte linha para rodar o script a cada 5 minutos:
 ```
 Sendo o Vim o editor de textos padrão, pressionar CTRL+C para preparar o encerramento da aplicação, digitar `!wq` para salvar a alteração e sair do editor.
 
-## Parte 3: Versionamento e Documentação
+## Parte III: Versionamento e Documentação
 
 ### 1. Inicializar um Repositório Git
 ```bash
