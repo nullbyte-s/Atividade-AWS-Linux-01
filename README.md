@@ -49,7 +49,11 @@ Nesse sentido, o presente documento atenderá a essas demandas, ao descrever tod
     * [1. Inicializar um Repositório Git](#1-inicializar-um-repositório-git)
     * [2. Subir o Código para o Repositório Remoto](#2-subir-o-código-para-o-repositório-remoto)
 
-4. **[Finalizando](#finalizando)**
+4. **[Parte IV: Acessando o servidor Apache](#parte-iv-acessando-o-servidor-apache)**
+    * [1. Preparando um site de exemplo](#1-preparando-um-site-de-exemplo)
+    * [2. Configurando acesso seguro e exclusivo ao HTTPS](#2-configurando-acesso-seguro-e-exclusivo-ao-https)
+
+5. **[Finalizando](#finalizando)**
     * [Testes de Acesso Público](#testes-de-acesso-público)
     * [Garantindo a Consistência](#garantindo-a-consistência)
 
@@ -59,7 +63,7 @@ Nesse sentido, o presente documento atenderá a essas demandas, ao descrever tod
 Criar uma Virtual Private Cloud (VPC) para o ambiente:
 
 - **Nome**: `atividade-linux-VPC`
-- **IPv4 CIDR block**: Escolha um bloco CIDR (ex: `10.0.0.0/16`).
+- **IPv4 CIDR block**: Escolher um bloco CIDR (ex: `10.0.0.0/16`).
 
 ### 2. Criar e associar uma Subnet pública
 - **Nome**: `atividade-linux-subnet`
@@ -102,9 +106,19 @@ Criar uma Virtual Private Cloud (VPC) para o ambiente:
 ## Parte II: Configuração no Linux
 
 ### 1. Acessar a Instância EC2 via SSH
+
+**Linux**:
 ```bash
-ssh -i ~/.ssh/atividade-linux-KeyPair ec2-user@<Elastic_IP>
+ssh -i ~/.ssh/atividade-linux-KeyPair.pem ec2-user@<Elastic_IP>
 ```
+
+**Windows**:
+```bat
+REM Variável de ambiente: %USERPROFILE% (cmd) ou $env:USERPROFILE (powershell)
+ssh -i "%USERPROFILE%\.ssh\atividade-linux-KeyPair.pem" ec2-user@<Elastic_IP>
+```
+
+- Observação: no Windows, é necessário limitar as permissões de acesso ao arquivo .PEM apenas para o usuário pertinente, sem o que o servidor SSH acusará o erro `bad permissions` e não permitirá a conexão. Nesse sentido, a seguinte configuração é recomendada: *Usuário Atual*: Controle Total ("Leitura e Execução", "Leitura" e "Gravação"); *Administradores, Sistema e outros usuários*: remover as permissões atribuídas por herança.
 
 ### 2. Criar um Sistema de Arquivos EFS
 - Acessar o serviço **EFS (Elastic File System)** na AWS.
@@ -113,10 +127,13 @@ ssh -i ~/.ssh/atividade-linux-KeyPair ec2-user@<Elastic_IP>
 - Selecionar a VPC `atividade-linux-VPC`.
 
 ### 3. Montar o Filesystem NFS
-Criar o ponto de montagem e monte o sistema de arquivos EFS:
+Criar o ponto de montagem e montar o sistema de arquivos EFS:
 ```bash
 sudo mkdir /mnt/efs
 sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport <IP_EFS>:/ /mnt/efs
+
+# Verificar estado da montagem
+mount | grep nfs
 ```
 Configuração para montagem automática no `/etc/fstab`:
 ```bash
@@ -200,6 +217,98 @@ Configurar o repositório remoto e enviar o código:
 git remote add origin <url_do_repositorio>
 git push -u origin master
 ```
+
+## Parte IV: Acessando o servidor Apache
+
+### 1. Preparando um site de exemplo
+
+O site será armazenado no diretório Web do Apache.
+
+```bash
+wget -q -O /tmp/encryptor-remastered.zip https://github.com/nullbyte-s/Encryptor-Remastered/archive/refs/heads/main.zip
+sudo -i
+unzip /tmp/encryptor-remastered.zip -d /var/www/html
+mv /var/www/html/Encryptor-Remastered-main/* /var/www/html/
+rm -rf /var/www/html/Encryptor-Remastered-main
+rm -f /tmp/encryptor-remastered.zip
+
+# Garantir as permissões necessárias para o usuário e grupo do Apache
+sudo chown apache:apache /var/www/html/*
+```
+
+O site estará acessível diretamente pelo IP público associado à instância EC2, na porta 80. Considerando que o tráfego dessa porta não oferece criptografia própria do protocolo, convém configurar o acesso via HTTPS com certificado válido em substituição ao acesso via HTTP, para atender as melhores práticas de segurança nesse contexto.
+
+Existem muitas maneiras de realizar esse procedimento. O exemplo a seguir não gera custos, atendendo bem ao propósito demonstrativo.
+
+### 2. Configurando acesso seguro e exclusivo ao HTTPS
+
+- Criar uma Conta e Configurar o DDNS no No-IP:
+    - Acessar "Dynamic DNS > Add a Hostname".
+    - Escolher um hostname único e selecionar um dos domínios gratuitos disponíveis.
+    - No campo IPv4 Address, inserir o Elastic IP da instância EC2.
+- Instalar o Cliente No-IP para atualizar automaticamente o IP associado ao hostname:
+```bash
+sudo -i
+yum install gcc make
+cd /usr/local/src/
+wget https://www.no-ip.com/client/linux/noip-duc-linux.tar.gz
+tar xf noip-duc-linux.tar.gz
+cd noip-*
+make
+
+# Inserir usuário e senha do No-IP, quando solicitado.
+make install
+
+# Rodar o binário do No-IP para atualizar o DDNS pela primeira vez
+/usr/local/bin/noip2
+
+# Iniciar o Cliente No-IP com o sistema
+sh -c 'echo "/usr/local/bin/noip2" >> /etc/rc.local'
+```
+- Instalar o Certbot e Configurar o SSL com Let's Encrypt:
+```bash
+sudo -i
+yum update -y
+
+# Instalar o repositório EPEL (Extra Packages for Enterprise Linux)
+amazon-linux-extras install epel -y
+yum --enablerepo=extras install epel-release
+
+yum install -y certbot python2-certbot-apache
+
+# O certbot solicitará a criação de um arquivo com conteúdo gerado automaticamente
+mkdir /var/www/html/.well-known
+mkdir /var/www/html/.well-known/acme-challenge
+certbot --manual --preferred-challenges http certonly -d <DDNS_NoIP>
+
+# Em outra sessão do SSH, criar o arquivo solicitado
+sudo nano /var/www/html/.well-known/acme-challenge/<Generated_Filename>
+    # Conteúdo do Script
+    `<Generated_Content>`
+```
+- Redirecionar HTTP para HTTPS:
+```bash
+sudo nano /etc/httpd/conf.d/ssl.conf
+    # Adicionar o conteúdo bloco, antes de `<VirtualHost _default_:443>`:
+    <VirtualHost *:80>
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    </VirtualHost>
+
+    # Substituir as linhas a seguir para usar o certificado SSL válido
+    --SSLCertificateFile /etc/pki/tls/certs/localhost.crt
+    --SSLCertificateKeyFile /etc/pki/tls/private/localhost.key
+    ++SSLCertificateFile /etc/letsencrypt/live/<DDNS_NoIP>/fullchain.pem
+    ++SSLCertificateKeyFile /etc/letsencrypt/live/<DDNS_NoIP>/privkey.pem
+
+# Reiniciar o Apache
+sudo systemctl restart httpd
+```
+
+Por fim, temos o servidor Apache rodando uma aplicação Web com tráfego seguro.
+
+**Nota:** A renovação automática do certificado SSL é possível, no entanto, o escopo demonstrativo desse guia finaliza aqui.
 
 ## Finalizando
 
